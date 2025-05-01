@@ -485,7 +485,7 @@ public class ClubProjectPortal {
     static void deleteEvent(Connection conn, int clubId) {
         try {
             System.out.print("Enter Event ID to delete: ");
-            int eventId = sc.nextInt(); sc.nextLine();
+            int eventId = Integer.parseInt(sc.nextLine().trim()); // safer input
     
             PreparedStatement pst = conn.prepareStatement("DELETE FROM Event WHERE id = ? AND clubId = ?");
             pst.setInt(1, eventId);
@@ -498,9 +498,12 @@ public class ClubProjectPortal {
                 System.out.println("Event not found or not owned by your club.");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println("SQL Error: " + e.getMessage());
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid Event ID. Please enter a number.");
         }
     }
+    
 
     static void collaborateWithClub(Connection conn, int clubId) {
         try {
@@ -593,7 +596,7 @@ public class ClubProjectPortal {
     static void adminMenu(Connection conn) {
         while (true) {
             System.out.println("\n-- Admin Panel --");
-            System.out.println("1. View Students\n2. Add Student\n3. Edit Student\n4. Delete Student\n5. View Clubs\n6. Add Club\n7. Edit Club\n8. Delete Club\n9. Logout");
+            System.out.println("1. View Students\n2. Signup Student\n3. Edit Student\n4. Delete Student\n5. View Clubs\n6. Signup Club\n7. Edit Club\n8. Delete Club\n9. Logout");
             System.out.print("Choice: ");
             int choice = sc.nextInt(); sc.nextLine();
 
@@ -637,20 +640,53 @@ public class ClubProjectPortal {
     }
 
     static void deleteStudent(Connection conn) {
-        System.out.print("Enter ID: "); int id = sc.nextInt(); sc.nextLine();
+        System.out.print("Enter ID: ");
+        int id = sc.nextInt();
+        sc.nextLine();
+    
         try {
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM Student WHERE id=?");
-            ps.setInt(1, id); ps.executeUpdate();
-            System.out.println("Deleted!");
-        } catch (SQLException e) { System.out.println("Error."); }
-    }
+            // Check if the student exists before attempting to delete
+            String checkStudentQuery = "SELECT COUNT(*) FROM Student WHERE id = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkStudentQuery);
+            checkStmt.setInt(1, id);
+            ResultSet rs = checkStmt.executeQuery();
 
+            // If the student does not exist, notify the user and exit
+            if (rs.next() && rs.getInt(1) == 0) {
+                System.out.println("Student with ID " + id + " does not exist.");
+                return;  // Exit the method if the student doesn't exist
+            }
+
+            // First, delete the corresponding rows in the ProjectMembers table
+            String deleteProjectMembersQuery = "DELETE FROM ProjectMembers WHERE studentId = ?";
+            PreparedStatement ps1 = conn.prepareStatement(deleteProjectMembersQuery);
+            ps1.setInt(1, id);
+            ps1.executeUpdate();
+    
+            // Then, delete the corresponding rows in the JoinProject table
+            String deleteJoinProjectQuery = "DELETE FROM JoinProject WHERE studentId = ?";
+            PreparedStatement ps2 = conn.prepareStatement(deleteJoinProjectQuery);
+            ps2.setInt(1, id);
+            ps2.executeUpdate();
+    
+            // Now, delete the student from the Student table
+            String deleteStudentQuery = "DELETE FROM Student WHERE id = ?";
+            PreparedStatement ps3 = conn.prepareStatement(deleteStudentQuery);
+            ps3.setInt(1, id);
+            ps3.executeUpdate();
+    
+            System.out.println("Student and related records deleted successfully!");
+        } catch (SQLException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+    
     static void viewClubs(Connection conn) {
         try {
             ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM Club");
             while (rs.next()) {
                 System.out.println(rs.getInt("id") + " | " + rs.getString("name") +
-                        " | Skills: " + rs.getString("required_skills") +
+                        " | Skills: " + rs.getString("requiredSkills") +
                         " | Desc: " + rs.getString("description"));
             }
         } catch (SQLException e) { System.out.println("Error."); }
@@ -662,7 +698,7 @@ public class ClubProjectPortal {
         System.out.print("New skills: "); String skills = sc.nextLine();
         System.out.print("New description: "); String desc = sc.nextLine();
         try {
-            PreparedStatement ps = conn.prepareStatement("UPDATE Club SET name=?, required_skills=?, description=? WHERE id=?");
+            PreparedStatement ps = conn.prepareStatement("UPDATE Club SET name=?, requiredSkills=?, description=? WHERE id=?");
             ps.setString(1, name); ps.setString(2, skills); ps.setString(3, desc); ps.setInt(4, id);
             ps.executeUpdate();
             System.out.println("Updated!");
@@ -670,11 +706,41 @@ public class ClubProjectPortal {
     }
 
     static void deleteClub(Connection conn) {
-        System.out.print("Enter ID: "); int id = sc.nextInt(); sc.nextLine();
+        System.out.print("Enter ID: "); 
+        int id = sc.nextInt(); 
+        sc.nextLine();  // Consume the newline character after integer input
+    
         try {
+            // Check if the club exists before attempting deletion
+            String checkClubQuery = "SELECT COUNT(*) FROM Club WHERE id = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkClubQuery);
+            checkStmt.setInt(1, id);
+            ResultSet rs = checkStmt.executeQuery();
+    
+            if (rs.next() && rs.getInt(1) == 0) {
+                System.out.println("Club with ID " + id + " does not exist.");
+                return;  // Exit the method if the club doesn't exist
+            }
+    
+            // Delete all collaborations where the club is involved (either as club1Id or club2Id)
+            String deleteCollaborationQuery = "DELETE FROM Collaboration WHERE club1Id = ? OR club2Id = ?";
+            PreparedStatement deleteCollabStmt = conn.prepareStatement(deleteCollaborationQuery);
+            deleteCollabStmt.setInt(1, id);
+            deleteCollabStmt.setInt(2, id);
+            deleteCollabStmt.executeUpdate();
+    
+            // Now delete the club
             PreparedStatement ps = conn.prepareStatement("DELETE FROM Club WHERE id=?");
-            ps.setInt(1, id); ps.executeUpdate();
-            System.out.println("Deleted!");
-        } catch (SQLException e) { System.out.println("Error."); }
-    }
+            ps.setInt(1, id);
+            int rowsDeleted = ps.executeUpdate();
+    
+            if (rowsDeleted > 0) {
+                System.out.println("Club deleted successfully!");
+            } else {
+                System.out.println("No club found with the given ID.");
+            }
+        } catch (SQLException e) {
+            System.out.println("Error: " + e.getMessage());  // Print the actual error message
+        }
+    }    
 }
