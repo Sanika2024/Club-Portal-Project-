@@ -78,5 +78,5 @@ CREATE TABLE IF NOT EXISTS Collaboration (
     eventId INT,
     FOREIGN KEY (club1Id) REFERENCES Club(id),
     FOREIGN KEY (club2Id) REFERENCES Club(id),
-    FOREIGN KEY (eventId) REFERENCES Event(id)
+    FOREIGN KEY (eventId) REFERENCES Event(id) ON DELETE CASCADE
 );
