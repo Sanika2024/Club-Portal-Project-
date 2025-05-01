@@ -2,9 +2,9 @@
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+//import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+//import java.util.Map;
 import java.util.Scanner;
 
 public class ClubProjectPortal {
@@ -21,6 +21,10 @@ public class ClubProjectPortal {
         Connection conn = connectToDatabase();
         if (conn == null) return;
 
+        showMainMenu(conn);
+    }
+
+    public static void showMainMenu(Connection conn) {
         while (true) {
             System.out.println("\n--- Welcome to Unified Student Platform ---\nSelect user type:\n1. Student\n2. Club\n3. Admin\n4. Exit\nEnter your role: ");
             int role = sc.nextInt(); sc.nextLine();
@@ -29,11 +33,12 @@ public class ClubProjectPortal {
                 case 1: studentAccess(conn); break;
                 case 2: clubAccess(conn); break;
                 case 3: adminLogin(conn); break;
-                case 4: System.out.println("Exiting..."); return;
+                case 4: System.out.println("Exiting..."); 
+                System.exit(0);
                 default: System.out.println("Invalid choice.");
             }
         }
-    }
+    }    
 
     static Connection connectToDatabase() {
         try {
@@ -111,83 +116,196 @@ public class ClubProjectPortal {
             System.out.print("Choice: ");
             int c = sc.nextInt(); sc.nextLine();
             switch (c) {
-                case 1: viewStudents(conn); break;
-                case 2: editStudent(conn); break;
-                case 3: deleteStudent(conn); break;
-                case 4: viewClubs(conn); break;
+
+                case 1: viewStudentProfile(conn, id); break;
+                case 2: updateStudentProfile(conn, id); break;
+                case 3: deleteOwnStudentProfile(conn, id); break;
+                case 4: viewAllClubs(conn); break;
                 case 5: startProject(conn, id); break;
                 case 6: joinProject(conn, id); break;
-                case 7: recommendForStudent(conn, id);;
+                case 7: recommendForStudent(conn, id);break;
                 case 8: return;
                 default: System.out.println("Invalid.");
             }
         }
     }
 
-    static void joinProject(Connection conn, int studentId){
+    static void viewStudentProfile(Connection conn, int id) {
+        System.out.println("\n--- Your Profile ---");
         try {
-            // Fetch student skills
-            PreparedStatement pst = conn.prepareStatement("SELECT skills FROM Student WHERE id = ?");
-            pst.setInt(1, studentId);
-            ResultSet rs = pst.executeQuery();
-            
-            List<String> studentSkills = new ArrayList<>();
+            PreparedStatement ps = conn.prepareStatement(
+                "SELECT username, name, skills, interests FROM Student WHERE id = ?"
+            );
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+    
             if (rs.next()) {
-                studentSkills = Arrays.asList(rs.getString("skills").toLowerCase().split(","));
+                System.out.println("Username : " + rs.getString("username"));
+                System.out.println("Name     : " + rs.getString("name"));
+                System.out.println("Skills   : " + rs.getString("skills"));
+                System.out.println("Interests: " + rs.getString("interests"));
+            } else {
+                System.out.println("Profile not found.");
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }    
 
-            // Fetch all projects
-            Statement stmt = conn.createStatement();
-            ResultSet projects = stmt.executeQuery("SELECT * FROM Project");
-
-            Map<Integer, String> matchingProjects = new HashMap<>();
-            int count = 1;
-
-            System.out.println("\nProjects matching your skills:");
-            while (projects.next()) {
-                int projectId = projects.getInt("id");
-                String title = projects.getString("title");
-                String requiredSkills = projects.getString("requiredSkills").toLowerCase();
-                List<String> requiredSkillsList = Arrays.asList((requiredSkills).split(","));
-
-                for (String skill : studentSkills) {
-                    if (requiredSkillsList.contains(skill.trim())) {
-                        matchingProjects.put(count, title + " (ID: " + projectId + ")");
-                        System.out.println(count + ". " + title + " - requires: " + requiredSkills);
-                        break;
-                    }
-                }
-                count++;
-            }
-            
-            if (matchingProjects.isEmpty()) {
-                System.out.println("No matching projects found.");
+    static void updateStudentProfile(Connection conn, int id) {
+        System.out.println("\n--- Update Profile ---");
+        System.out.println("1. Name\n2. Skills\n3. Interests\n4. All");
+        System.out.print("What do you want to update? ");
+        int choice = sc.nextInt();
+        sc.nextLine();
+    
+        try {
+            if (choice == 1) {
+                System.out.print("Enter new name: ");
+                String name = sc.nextLine();
+                PreparedStatement pst = conn.prepareStatement("UPDATE Student SET name = ? WHERE id = ?");
+                pst.setString(1, name);
+                pst.setInt(2, id);
+                pst.executeUpdate();
+            } else if (choice == 2) {
+                System.out.print("Enter new skills (comma-separated): ");
+                String skills = sc.nextLine();
+                PreparedStatement pst = conn.prepareStatement("UPDATE Student SET skills = ? WHERE id = ?");
+                pst.setString(1, skills);
+                pst.setInt(2, id);
+                pst.executeUpdate();
+            } else if (choice == 3) {
+                System.out.print("Enter new interests (comma-separated): ");
+                String interests = sc.nextLine();
+                PreparedStatement pst = conn.prepareStatement("UPDATE Student SET interests = ? WHERE id = ?");
+                pst.setString(1, interests);
+                pst.setInt(2, id);
+                pst.executeUpdate();
+            } else if (choice == 4) {
+                System.out.print("Enter new name: ");
+                String name = sc.nextLine();
+                System.out.print("Enter new skills (comma-separated): ");
+                String skills = sc.nextLine();
+                System.out.print("Enter new interests (comma-separated): ");
+                String interests = sc.nextLine();
+                PreparedStatement pst = conn.prepareStatement("UPDATE Student SET name = ?, skills = ?, interests = ? WHERE id = ?");
+                pst.setString(1, name);
+                pst.setString(2, skills);
+                pst.setString(3, interests);
+                pst.setInt(4, id);
+                pst.executeUpdate();
+            } else {
+                System.out.println("Invalid option.");
                 return;
             }
+            System.out.println("Profile updated successfully.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }    
 
-            System.out.print("Enter the number of the project you want to join: ");
-            int choice = sc.nextInt();
-            sc.nextLine();
+    static void deleteOwnStudentProfile(Connection conn, int id) {
+        System.out.print("Are you sure you want to delete your profile? (yes/no): ");
+        String confirm = sc.nextLine();
+        if (confirm.equalsIgnoreCase("yes")) {
+            try {
+                 // Step 1: Delete from dependent tables
+                PreparedStatement pst1 = conn.prepareStatement("DELETE FROM ProjectMembers WHERE studentId = ?");
+                pst1.setInt(1, id);
+                pst1.executeUpdate();
 
-            if (matchingProjects.containsKey(choice)) {
-                String selected = matchingProjects.get(choice);
-                int projectId = Integer.parseInt(selected.replaceAll("[^0-9]", ""));
+                PreparedStatement pst2 = conn.prepareStatement("DELETE FROM JoinProject WHERE studentId = ?");
+                pst2.setInt(1, id);
+                pst2.executeUpdate();
 
-                // Insert into ProjectMembers table
-                PreparedStatement insert = conn.prepareStatement("INSERT INTO ProjectMembers (projectId, studentId) VALUES (?, ?)");
-                insert.setInt(1, projectId);
-                insert.setInt(2, studentId);
-                insert.executeUpdate();
-
-                System.out.println("You have successfully joined the project: " + selected);
-            } else {
-                System.out.println("Invalid choice.");
+                // Step 2: Delete from Student
+                PreparedStatement pst3 = conn.prepareStatement("DELETE FROM Student WHERE id = ?");
+                pst3.setInt(1, id);
+                pst3.executeUpdate();
+                System.out.println("Profile deleted. Logging out...");
+                showMainMenu(conn);
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
+        } else {
+            System.out.println("Deletion canceled.");
+        }
+    }    
 
+    static void viewAllClubs(Connection conn) {
+        System.out.println("\n--- All Clubs ---");
+        try {
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT name, requiredSkills, description FROM Club");
+            while (rs.next()) {
+                System.out.println("- " + rs.getString("name") + " | Skills Required: " + rs.getString("requiredSkills") + " | " + rs.getString("description"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }   
+
+    static void joinProject(Connection conn, int studentId) {
+        try {
+            // Step 1: Show available projects
+            System.out.println("\n--- Available Projects ---");
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT id, title, requiredSkills FROM Project");
+    
+            List<Integer> projectIds = new ArrayList<>();
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String title = rs.getString("title");
+                String skills = rs.getString("requiredSkills");
+    
+                projectIds.add(id);
+                System.out.println("Project ID: " + id + " | Title: " + title + " | Skills: " + skills);
+            }
+    
+            if (projectIds.isEmpty()) {
+                System.out.println("No projects available right now.");
+                return;
+            }
+    
+            // Step 2: Let user select project
+            System.out.print("\nEnter Project ID to apply: ");
+            int selectedId = sc.nextInt();
+            sc.nextLine();
+    
+            if (!projectIds.contains(selectedId)) {
+                System.out.println("Invalid project selection.");
+                return;
+            }
+    
+            // Optional: Check if already applied
+            PreparedStatement check = conn.prepareStatement(
+                "SELECT * FROM JoinProject WHERE studentId = ? AND projectId = ?");
+            check.setInt(1, studentId);
+            check.setInt(2, selectedId);
+            ResultSet exists = check.executeQuery();
+            if (exists.next()) {
+                System.out.println("You've already applied to this project.");
+                return;
+            }
+        
+            System.out.print("Do you want to proceed with applying? (yes/no): ");
+            String confirm = sc.nextLine();
+            if (confirm.equalsIgnoreCase("yes")) {
+                PreparedStatement insert = conn.prepareStatement(
+                    "INSERT INTO JoinProject (studentId, projectId) VALUES (?, ?)");
+                insert.setInt(1, studentId);
+                insert.setInt(2, selectedId);
+                insert.executeUpdate();
+                System.out.println("Applied successfully!");
+            } else {
+                System.out.println("Application cancelled.");
+            }
+    
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
+    
 
     static void startProject(Connection conn, int studentId) {
         try {
@@ -324,7 +442,7 @@ public class ClubProjectPortal {
             System.out.print("Description: "); String description = sc.nextLine();
             System.out.print("Username: "); String username = sc.nextLine();
             System.out.print("Password: "); String password = sc.nextLine();
-            System.out.print("Team  Members: "); String teamMembers = sc.nextLine();
+            System.out.print("Club Head: "); String teamMembers = sc.nextLine();
 
             PreparedStatement ps = conn.prepareStatement("INSERT INTO Club VALUES (?, ?, ?, ?, ?, ?, ?)");
             ps.setInt(1, id);  ps.setString(2, username); ps.setString(3, password);
@@ -360,19 +478,20 @@ public class ClubProjectPortal {
     static void clubMenu(Connection conn, int id) {
         while (true) {
             System.out.println("\n-- Club Menu --");
-            System.out.println("1. View Profile\n2. Update Profile\n3. Delete Profile\n4. View Events\n5. Add Event\n6. Update Event\n7. Delete Event\n8. Collaborate\n9. Logout");
+            System.out.println("1. View Profile\n2. Update Profile\n3. Delete Profile\n4. Manage Team Members\n5. View Events\n6. Add Event\n7. Update Event\n8. Delete Event\n9. Collaborate\n10. Logout");
             System.out.print("Choice: ");
             int c = sc.nextInt(); sc.nextLine();
             switch (c) {
-                case 1: viewClubs(conn); break;
-                case 2: editClub(conn); break;
-                case 3: deleteClub(conn); break;
-                case 4: viewEvents(conn, id); break;
-                case 5: addEvent(conn, id); break;
-                case 6: updateEvent(conn, id); break;
-                case 7: deleteEvent(conn, id); break;
-                case 8: collaborateWithClub(conn, id); break;
-                case 9: return;
+                case 1: viewClubProfile(conn, id); break;
+                case 2: updateClubProfile(conn, id); break;
+                case 3: deleteOwnClubProfile(conn, id); break;
+                case 4: manageClubTeamMembers(conn, id); break;
+                case 5: viewEvents(conn, id); break;
+                case 6: addEvent(conn, id); break;
+                case 7: updateEvent(conn, id); break;
+                case 8: deleteEvent(conn, id); break;
+                case 9: addCollaboration(conn, id); break;
+                case 10: return;
                 default: System.out.println("Invalid.");
             }
         }
@@ -393,6 +512,109 @@ public class ClubProjectPortal {
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        }
+    }
+
+    static void viewClubProfile(Connection conn, int id) {
+        System.out.println("\n--- Your Profile ---");
+        try {
+            PreparedStatement ps = conn.prepareStatement(
+                "SELECT username, name, requiredSkills, description FROM Club WHERE id = ?"
+            );
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+    
+            if (rs.next()) {
+                System.out.println("Username : " + rs.getString("username"));
+                System.out.println("Name     : " + rs.getString("name"));
+                System.out.println("Skills   : " + rs.getString("requiredSkills"));
+                System.out.println("Description: " + rs.getString("description"));
+            } else {
+                System.out.println("Profile not found.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    static void updateClubProfile(Connection conn, int id) {
+        System.out.println("\n--- Update Profile ---");
+        System.out.println("1. Name\n2. Skills\n3. Description\n4. All");
+        System.out.print("What do you want to update? ");
+        int choice = sc.nextInt();
+        sc.nextLine();
+    
+        try {
+            if (choice == 1) {
+                System.out.print("Enter new name: ");
+                String name = sc.nextLine();
+                PreparedStatement pst = conn.prepareStatement("UPDATE Club SET name = ? WHERE id = ?");
+                pst.setString(1, name);
+                pst.setInt(2, id);
+                pst.executeUpdate();
+            } else if (choice == 2) {
+                System.out.print("Enter new skills (comma-separated): ");
+                String requiredSkills = sc.nextLine();
+                PreparedStatement pst = conn.prepareStatement("UPDATE Club SET requiredSkills = ? WHERE id = ?");
+                pst.setString(1, requiredSkills);
+                pst.setInt(2, id);
+                pst.executeUpdate();
+            } else if (choice == 3) {
+                System.out.print("Enter new description: ");
+                String description = sc.nextLine();
+                PreparedStatement pst = conn.prepareStatement("UPDATE Club SET description = ? WHERE id = ?");
+                pst.setString(1, description);
+                pst.setInt(2, id);
+                pst.executeUpdate();
+            } else if (choice == 4) {
+                System.out.print("Enter new name: ");
+                String name = sc.nextLine();
+                System.out.print("Enter new skills (comma-separated): ");
+                String requiredSkills = sc.nextLine();
+                System.out.print("Enter new description: ");
+                String description = sc.nextLine();
+                PreparedStatement pst = conn.prepareStatement("UPDATE Club SET name = ?, requiredSkills = ?, description = ? WHERE id = ?");
+                pst.setString(1, name);
+                pst.setString(2, requiredSkills);
+                pst.setString(3, description);
+                pst.setInt(4, id);
+                pst.executeUpdate();
+            } else {
+                System.out.println("Invalid option.");
+                return;
+            }
+            System.out.println("Profile updated successfully.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }    
+
+    static void deleteOwnClubProfile(Connection conn, int id) {
+        System.out.print("Are you sure you want to delete your profile? (yes/no): ");
+        String confirm = sc.nextLine();
+        if (confirm.equalsIgnoreCase("yes")) {
+            try {
+                 // Step 1: Delete from dependent tables
+                PreparedStatement pst1 = conn.prepareStatement("DELETE FROM Event WHERE clubId = ?");
+                pst1.setInt(1, id);
+                pst1.executeUpdate();
+
+                PreparedStatement pst2 = conn.prepareStatement("DELETE FROM ClubCollaborations WHERE club1_id = ? OR club2_id = ?");
+                pst2.setInt(1, id);
+                pst2.setInt(2, id);
+                pst2.executeUpdate();
+
+                // Step 2: Delete from Student
+                PreparedStatement pst3 = conn.prepareStatement("DELETE FROM Club WHERE id = ?");
+                pst3.setInt(1, id);
+                pst3.executeUpdate();
+                System.out.println("Profile deleted. Logging out...");
+                showMainMenu(conn);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("Deletion canceled.");
         }
     }
 
@@ -484,83 +706,256 @@ public class ClubProjectPortal {
         }
     }
     
-
-    static void collaborateWithClub(Connection conn, int clubId) {
+    static void manageClubTeamMembers(Connection conn, int clubId) {
+        while (true) {
+            System.out.println("\n--- Manage Team Members ---");
+            System.out.println("1. View Team Members");
+            System.out.println("2. Add Team Member");
+            System.out.println("3. Remove Team Member");
+            System.out.println("4. Back to Club Menu");
+    
+            System.out.print("Enter your choice: ");
+            int choice = sc.nextInt();
+            sc.nextLine();
+    
+            switch (choice) {
+                case 1:
+                    viewClubTeamMembers(conn, clubId);
+                    break;
+                case 2:
+                    addClubTeamMember(conn, clubId);
+                    break;
+                case 3:
+                    removeClubTeamMember(conn, clubId);
+                    break;
+                case 4:
+                    return;
+                default:
+                    System.out.println("Invalid choice.");
+            }
+        }
+    }
+    
+    static void viewClubTeamMembers(Connection conn, int clubId) {
         try {
-            // List other clubs
-            PreparedStatement pst = conn.prepareStatement("SELECT id, name FROM Club WHERE id != ?");
+            PreparedStatement pst = conn.prepareStatement("SELECT teamMembers FROM Club WHERE id = ?");
             pst.setInt(1, clubId);
             ResultSet rs = pst.executeQuery();
     
-            Map<Integer, Integer> clubMap = new HashMap<>();
-            int count = 1;
-            System.out.println("\n-- Available Clubs to Collaborate With --");
-            while (rs.next()) {
-                int otherId = rs.getInt("id");
-                System.out.println(count + ". " + rs.getString("name") + " (ID: " + otherId + ")");
-                clubMap.put(count, otherId);
-                count++;
+            if (rs.next()) {
+                String members = rs.getString("teamMembers");
+                if (members == null || members.isEmpty()) {
+                    System.out.println("No team members listed.");
+                } else {
+                    System.out.println("Team Members (U_No): " + members);
+                }
             }
     
-            if (clubMap.isEmpty()) {
-                System.out.println("No other clubs available for collaboration.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    static void addClubTeamMember(Connection conn, int clubId) {
+        System.out.print("Enter ID of the student to add: ");
+        int studentId = sc.nextInt();
+        sc.nextLine();
+
+        try {
+            // Check if student exists
+            PreparedStatement checkStudent = conn.prepareStatement("SELECT * FROM Student WHERE id = ?");
+            checkStudent.setInt(1, studentId);
+            ResultSet studentRs = checkStudent.executeQuery();
+    
+            if (!studentRs.next()) {
+                System.out.println(" Student with U_No " + studentId + " not found.");
                 return;
             }
     
-            System.out.print("Enter number of club to collaborate with: ");
-            int choice = sc.nextInt(); sc.nextLine();
-            int club2Id = clubMap.getOrDefault(choice, -1);
+            // Fetch current team members
+            PreparedStatement pst = conn.prepareStatement("SELECT teamMembers FROM Club WHERE id = ?");
+            pst.setInt(1, clubId);
+            ResultSet rs = pst.executeQuery();
     
-            if (club2Id == -1) {
-                System.out.println("Invalid club selection.");
-                return;
+            if (rs.next()) {
+                String members = rs.getString("teamMembers");
+                List<String> memberList = new ArrayList<>();
+                if (members != null && !members.isEmpty()) {
+                    memberList = new ArrayList<>(Arrays.asList(members.split(",")));
+                }
+    
+                if (memberList.contains(String.valueOf(studentId))) {
+                    System.out.println("⚠ Student is already in the team.");
+                    return;
+                }
+    
+                memberList.add(String.valueOf("studentId"));
+                String updatedMembers = String.join(",", memberList);
+    
+                PreparedStatement update = conn.prepareStatement("UPDATE Club SET teamMembers = ? WHERE id = ?");
+                update.setString(1, updatedMembers);
+                update.setInt(2, clubId);
+                update.executeUpdate();
+    
+                System.out.println(" Student added to the team.");
             }
     
-            // Show club's own events
-            PreparedStatement events = conn.prepareStatement("SELECT id, title FROM Event WHERE clubId = ?");
-            events.setInt(1, clubId);
-            ResultSet eventRs = events.executeQuery();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
     
-            Map<Integer, Integer> eventMap = new HashMap<>();
-            int ec = 1;
-            System.out.println("\n-- Your Events --");
-            while (eventRs.next()) {
-                int eid = eventRs.getInt("id");
-                String title = eventRs.getString("title");
-                System.out.println(ec + ". " + title + " (ID: " + eid + ")");
-                eventMap.put(ec, eid);
-                ec++;
+    static void removeClubTeamMember(Connection conn, int clubId) {
+        System.out.print("Enter ID of the student to remove: ");
+        int studentId = sc.nextInt();
+        sc.nextLine();
+    
+        try {
+            // Fetch current team members
+            PreparedStatement pst = conn.prepareStatement("SELECT teamMembers FROM Club WHERE id = ?");
+            pst.setInt(1, clubId);
+            ResultSet rs = pst.executeQuery();
+    
+            if (rs.next()) {
+                String members = rs.getString("teamMembers");
+                if (members == null || members.isEmpty()) {
+                    System.out.println("No team members to remove.");
+                    return;
+                }
+    
+                List<String> memberList = new ArrayList<>(Arrays.asList(members.split(",")));
+                if (!memberList.contains(String.valueOf(studentId))) {
+                    System.out.println(" Student is not currently in the team.");
+                    return;
+                }
+    
+                memberList.removeIf(m -> m.trim().equals(String.valueOf(studentId)));
+                String updatedMembers = String.join(",", memberList);
+    
+                PreparedStatement update = conn.prepareStatement("UPDATE Club SET teamMembers = ? WHERE id = ?");
+                update.setString(1, updatedMembers);
+                update.setInt(2, clubId);
+                update.executeUpdate();
+    
+                System.out.println("Student removed from the team.");
             }
-    
-            if (eventMap.isEmpty()) {
-                System.out.println("No events found to collaborate on.");
-                return;
-            }
-    
-            System.out.print("Enter id of your event to collaborate on: ");
-            int eventChoice = sc.nextInt(); sc.nextLine();
-            int eventId = eventMap.getOrDefault(eventChoice, -1);
-    
-            if (eventId == -1) {
-                System.out.println("Invalid event selection.");
-                return;
-            }
-    
-            // Insert into Collaboration table
-            PreparedStatement insert = conn.prepareStatement(
-                "INSERT INTO Collaboration (club1Id, club2Id, eventId) VALUES (?, ?, ?)"
-            );
-            insert.setInt(1, clubId);
-            insert.setInt(2, club2Id);
-            insert.setInt(3, eventId);
-            insert.executeUpdate();
-    
-            System.out.println("Collaboration created successfully.");
     
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }    
+
+    static void addCollaboration(Connection conn, int myClubId) {
+        System.out.print("Enter ID of the club you want to collaborate with: ");
+        int otherClubId = sc.nextInt();
+        sc.nextLine();
+    
+        try {
+            // Check if other club exists
+            PreparedStatement check = conn.prepareStatement("SELECT * FROM Club WHERE id = ?");
+            check.setInt(1, otherClubId);
+            ResultSet rs = check.executeQuery();
+    
+            if (!rs.next()) {
+                System.out.println("Club with ID " + otherClubId + " not found.");
+                return;
+            }
+    
+            // Check if collaboration already exists
+            PreparedStatement collabCheck = conn.prepareStatement(
+                "SELECT * FROM ClubCollaborations WHERE (club1_id = ? AND club2_id = ?) OR (club1_id = ? AND club2_id = ?)"
+            );
+            collabCheck.setInt(1, myClubId);
+            collabCheck.setInt(2, otherClubId);
+            collabCheck.setInt(3, otherClubId);
+            collabCheck.setInt(4, myClubId);
+            ResultSet collabRs = collabCheck.executeQuery();
+    
+            if (collabRs.next()) {
+                System.out.println("Collaboration already exists between these clubs.");
+                return;
+            }
+    
+            // Insert collaboration records (both directions)
+            PreparedStatement insert = conn.prepareStatement("INSERT INTO ClubCollaborations (club1_id, club2_id) VALUES (?, ?)");
+            insert.setInt(1, myClubId);
+            insert.setInt(2, otherClubId);
+            insert.executeUpdate();
+    
+            insert.setInt(1, otherClubId);
+            insert.setInt(2, myClubId);
+            insert.executeUpdate();
+    
+            System.out.println("Collaboration established between club " + myClubId + " and club " + otherClubId + ".");
+    
+            // Copy events from otherClub → myClub if not already copied
+            PreparedStatement fetchOtherEvents = conn.prepareStatement("SELECT title, description, date FROM Event WHERE clubId = ?");
+            fetchOtherEvents.setInt(1, otherClubId);
+            ResultSet otherEvents = fetchOtherEvents.executeQuery();
+    
+            while (otherEvents.next()) {
+                String title = otherEvents.getString("title");
+                String description = otherEvents.getString("description") + " (Collab with club " + otherClubId + ")";
+                Date date = otherEvents.getDate("date");
+    
+                // Check if similar event already exists for myClub
+                PreparedStatement checkEvent = conn.prepareStatement(
+                    "SELECT * FROM Event WHERE clubId = ? AND title = ? AND date = ?"
+                );
+                checkEvent.setInt(1, myClubId);
+                checkEvent.setString(2, title);
+                checkEvent.setDate(3, date);
+                ResultSet eventCheckRs = checkEvent.executeQuery();
+    
+                if (!eventCheckRs.next()) {
+                    PreparedStatement insertEvent = conn.prepareStatement(
+                        "INSERT INTO Event (clubId, title, description, date) VALUES (?, ?, ?, ?)"
+                    );
+                    insertEvent.setInt(1, myClubId);
+                    insertEvent.setString(2, title);
+                    insertEvent.setString(3, description);
+                    insertEvent.setDate(4, date);
+                    insertEvent.executeUpdate();
+                }
+            }
+    
+            // Copy events from myClub → otherClub if not already copied
+            PreparedStatement fetchMyEvents = conn.prepareStatement("SELECT title, description, date FROM Event WHERE clubId = ?");
+            fetchMyEvents.setInt(1, myClubId);
+            ResultSet myEvents = fetchMyEvents.executeQuery();
+    
+            while (myEvents.next()) {
+                String title = myEvents.getString("title");
+                String description = myEvents.getString("description") + " (Collab with club " + myClubId + ")";
+                Date date = myEvents.getDate("date");
+    
+                // Check if similar event already exists for otherClub
+                PreparedStatement checkEvent = conn.prepareStatement(
+                    "SELECT * FROM Event WHERE clubId = ? AND title = ? AND date = ?"
+                );
+                checkEvent.setInt(1, otherClubId);
+                checkEvent.setString(2, title);
+                checkEvent.setDate(3, date);
+                ResultSet eventCheckRs = checkEvent.executeQuery();
+    
+                if (!eventCheckRs.next()) {
+                    PreparedStatement insertEvent = conn.prepareStatement(
+                        "INSERT INTO Event (clubId, title, description, date) VALUES (?, ?, ?, ?)"
+                    );
+                    insertEvent.setInt(1, otherClubId);
+                    insertEvent.setString(2, title);
+                    insertEvent.setString(3, description);
+                    insertEvent.setDate(4, date);
+                    insertEvent.executeUpdate();
+                }
+            }
+    
+            System.out.println("Events have been shared between the collaborating clubs.");
+    
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }            
 
     // ---------- ADMIN SECTION ----------
     static void adminLogin(Connection conn) {
