@@ -4,6 +4,7 @@ CREATE DATABASE IF NOT EXISTS ProjectPortal
 
 USE ProjectPortal;
 
+
 -- Step 2: Create Students table
 CREATE TABLE IF NOT EXISTS Student (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -13,6 +14,7 @@ CREATE TABLE IF NOT EXISTS Student (
     skills VARCHAR(255),
     interests VARCHAR(255)
 );
+
 
 -- Step 3: Create Clubs table
 CREATE TABLE IF NOT EXISTS Club (
@@ -37,8 +39,8 @@ CREATE TABLE IF NOT EXISTS Project (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(100) NOT NULL,
     description VARCHAR(255),
-    ownerType ENUM('student', 'club') NOT NULL,
-    ownerId INT NOT NULL
+    createdBy VARCHAR(50),
+    FOREIGN KEY (createdBy) REFERENCES Student(U_No)
 );
 ALTER TABLE Project
 ADD COLUMN requiredSkills TEXT;
@@ -71,12 +73,9 @@ CREATE TABLE IF NOT EXISTS Event (
 );
 
 -- Step 8: Create Collaborations table (club-to-club collaborations)
-CREATE TABLE IF NOT EXISTS Collaboration (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    club1Id INT,
-    club2Id INT,
-    eventId INT,
-    FOREIGN KEY (club1Id) REFERENCES Club(id),
-    FOREIGN KEY (club2Id) REFERENCES Club(id),
-    FOREIGN KEY (eventId) REFERENCES Event(id) ON DELETE CASCADE
+CREATE TABLE ClubCollaborations (
+    club1_id INT,
+    club2_id INT,
+    FOREIGN KEY (club1_id) REFERENCES Club(id),
+    FOREIGN KEY (club2_id) REFERENCES Club(id)
 );
