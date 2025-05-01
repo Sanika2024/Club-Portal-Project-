@@ -159,27 +159,7 @@ public class ClubProjectPortal {
                 }
                 count++;
             }
-
-        /*    while (projects.next()) {
-                int projectId = projects.getInt("id");
-                String title = projects.getString("title");
-                String requiredSkills = projects.getString("requiredSkills").toLowerCase();
             
-                List<String> requiredSkillsList = Arrays.asList(requiredSkills.split(","));
-            
-                for (String skill : studentSkills) {
-                    for (String required : requiredSkillsList) {
-                        if (required.trim().equalsIgnoreCase(skill.trim())) {
-                            matchingProjects.put(count, title + " (ID: " + projectId + ")");
-                            System.out.println(count + ". " + title + " - requires: " + requiredSkills);
-                            break;
-                        }
-                    }
-                }
-                count++;
-            }
-            
-*/
             if (matchingProjects.isEmpty()) {
                 System.out.println("No matching projects found.");
                 return;
