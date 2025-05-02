@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS Project (
 );
 ALTER TABLE Project
 ADD COLUMN requiredSkills TEXT;
+ALTER TABLE Project ADD COLUMN memberLimit INT DEFAULT 5;
+
 
 CREATE TABLE ProjectMembers (
     projectId INT,
