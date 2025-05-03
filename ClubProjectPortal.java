@@ -271,9 +271,13 @@ public class ClubProjectPortal {
             System.out.print("Enter project description: ");
             String description = sc.nextLine();
     
+            System.out.print("Enter number of members required (including you): ");
+            int memberLimit = sc.nextInt();
+            sc.nextLine();
+    
             // Insert into Project table with ownerType = 'student'
             PreparedStatement insertProject = conn.prepareStatement(
-                "INSERT INTO Project (title, description, requiredSkills, ownerType, ownerId) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO Project (title, description, requiredSkills, ownerType, ownerId, memberLimit) VALUES (?, ?, ?, ?, ?, ?)",
                 Statement.RETURN_GENERATED_KEYS
             );
             insertProject.setString(1, title);
@@ -281,6 +285,7 @@ public class ClubProjectPortal {
             insertProject.setString(3, requiredSkills);
             insertProject.setString(4, "student");
             insertProject.setInt(5, studentId);
+            insertProject.setInt(6, memberLimit);
     
             int rows = insertProject.executeUpdate();
             if (rows == 0) {
@@ -312,59 +317,109 @@ public class ClubProjectPortal {
     
     static void joinProject(Connection conn, int studentId) {
         try {
-            // Show projects student is already part of
-            System.out.println("\n--- Projects You're Already Part Of ---");
-            PreparedStatement memberStmt = conn.prepareStatement(
-                "SELECT Project.id, Project.title FROM Project " +
-                "JOIN ProjectMembers ON Project.id = ProjectMembers.projectId " +
-                "WHERE ProjectMembers.studentId = ?"
-            );
-            memberStmt.setInt(1, studentId);
-            ResultSet memberRs = memberStmt.executeQuery();
-            boolean hasJoined = false;
-            while (memberRs.next()) {
-                hasJoined = true;
-                System.out.println(" - " + memberRs.getInt("id") + ": " + memberRs.getString("title"));
-            }
-            if (!hasJoined) System.out.println("You are not part of any project yet.");
+            // Step 1: Show available projects
+            System.out.println("\n--- Available Projects ---");
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT id, title, requiredSkills FROM Project");
     
-            // Now show available projects to join
-            System.out.println("\n--- Available Projects to Join ---");
-            PreparedStatement availableStmt = conn.prepareStatement(
-                "SELECT id, title, requiredSkills FROM Project WHERE id NOT IN (" +
-                "SELECT projectId FROM ProjectMembers WHERE studentId = ?)"
-            );
-            availableStmt.setInt(1, studentId);
-            ResultSet rs = availableStmt.executeQuery();
-    
-            List<Integer> availableProjects = new ArrayList<>();
+            List<Integer> projectIds = new ArrayList<>();
             while (rs.next()) {
                 int id = rs.getInt("id");
-                availableProjects.add(id);
-                System.out.println("Project ID: " + id + " | Title: " + rs.getString("title") +
-                                   " | Skills: " + rs.getString("requiredSkills"));
+                String title = rs.getString("title");
+                String skills = rs.getString("requiredSkills");
+    
+                projectIds.add(id);
+                System.out.println("Project ID: " + id + " | Title: " + title + " | Skills: " + skills);
             }
     
-            if (availableProjects.isEmpty()) {
-                System.out.println("No available projects to join.");
+            if (projectIds.isEmpty()) {
+                System.out.println("No projects available right now.");
                 return;
             }
     
+            // Step 2: Let user select project
             System.out.print("\nEnter Project ID to apply: ");
-            int selectedId = sc.nextInt(); sc.nextLine();
+            int selectedId = sc.nextInt();
+            sc.nextLine();
     
-            if (!availableProjects.contains(selectedId)) {
-                System.out.println("Invalid selection.");
+            if (!projectIds.contains(selectedId)) {
+                System.out.println("Invalid project selection.");
+                return;
+            }
+
+            // Check if student is already a confirmed member
+PreparedStatement checkMember = conn.prepareStatement(
+    "SELECT * FROM ProjectMembers WHERE studentId = ? AND projectId = ?"
+);
+checkMember.setInt(1, studentId);
+checkMember.setInt(2, selectedId);
+ResultSet memberExists = checkMember.executeQuery();
+
+if (memberExists.next()) {
+    System.out.println("You're already a member of this project.");
+    return;
+}
+    
+            // Step 3: Check if project is full
+            PreparedStatement checkLimit = conn.prepareStatement(
+                "SELECT memberLimit FROM Project WHERE id = ?"
+            );
+            checkLimit.setInt(1, selectedId);
+            ResultSet limitRs = checkLimit.executeQuery();
+    
+            int memberLimit = 0;
+            if (limitRs.next()) {
+                memberLimit = limitRs.getInt("memberLimit");
+            }
+    
+            // Count confirmed members
+            PreparedStatement countMembers = conn.prepareStatement(
+            "SELECT COUNT(*) AS count FROM ProjectMembers WHERE projectId = ?"
+            );
+            countMembers.setInt(1, selectedId);
+            ResultSet membersRs = countMembers.executeQuery();
+            int currentMembers = membersRs.next() ? membersRs.getInt("count") : 0;
+
+            // Count pending applications
+            PreparedStatement countApplicants = conn.prepareStatement(
+            "SELECT COUNT(*) AS count FROM JoinProject WHERE projectId = ?"
+            );
+            countApplicants.setInt(1, selectedId);
+            ResultSet applicantsRs = countApplicants.executeQuery();
+            int pendingApplicants = applicantsRs.next() ? applicantsRs.getInt("count") : 0;
+
+            int total = currentMembers + pendingApplicants;
+            if (total >= memberLimit) {
+                System.out.println("Project is full. Cannot apply.");
                 return;
             }
     
-            PreparedStatement insert = conn.prepareStatement(
-                "INSERT INTO JoinProject (studentId, projectId) VALUES (?, ?)"
+            // Step 4: Check if already applied
+            PreparedStatement check = conn.prepareStatement(
+                "SELECT * FROM JoinProject WHERE studentId = ? AND projectId = ?"
             );
-            insert.setInt(1, studentId);
-            insert.setInt(2, selectedId);
-            insert.executeUpdate();
-            System.out.println("Applied successfully!");
+            check.setInt(1, studentId);
+            check.setInt(2, selectedId);
+            ResultSet exists = check.executeQuery();
+            if (exists.next()) {
+                System.out.println("You've already applied to this project.");
+                return;
+            }
+    
+            System.out.print("Do you want to proceed with applying? (yes/no): ");
+            String confirm = sc.nextLine();
+            if (confirm.equalsIgnoreCase("yes")) {
+                PreparedStatement insert = conn.prepareStatement(
+                    "INSERT INTO JoinProject (studentId, projectId) VALUES (?, ?)"
+                );
+                insert.setInt(1, studentId);
+                insert.setInt(2, selectedId);
+                insert.executeUpdate();
+                System.out.println("Applied successfully!");
+            } else {
+                System.out.println("Application cancelled.");
+            }
+    
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -446,9 +501,6 @@ public class ClubProjectPortal {
         }
     }
 
-    /**
-     * @param conn
-     */
     static void clubSignUp(Connection conn) {
         try {
             System.out.print("Enter club ID: ");
