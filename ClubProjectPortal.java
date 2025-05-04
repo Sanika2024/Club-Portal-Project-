@@ -1091,43 +1091,44 @@ if (memberExists.next()) {
             PreparedStatement checkStmt = conn.prepareStatement(checkStudentQuery);
             checkStmt.setInt(1, id);
             ResultSet rs = checkStmt.executeQuery();
-
+            
             // If the student does not exist, notify the user and exit
             if (rs.next() && rs.getInt(1) == 0) {
                 System.out.println("Student with ID " + id + " does not exist.");
                 return;  // Exit the method if the student doesn't exist
             }
-
-            // Delete projects created by the student
-            PreparedStatement psProjects = conn.prepareStatement(
-            "DELETE FROM Project WHERE ownerType = 'student' AND ownerId = ?"
-            );
-            psProjects.setInt(1, id);
-            psProjects.executeUpdate();
-
-            // First, delete the corresponding rows in the ProjectMembers table
+    
+            // Step 1: Delete rows from JoinProject where student is involved
+            String deleteJoinProjectQuery = "DELETE FROM JoinProject WHERE studentId = ?";
+            PreparedStatement ps2 = conn.prepareStatement(deleteJoinProjectQuery);
+            ps2.setInt(1, id);
+            ps2.executeUpdate();
+            
+            // Step 2: Delete corresponding rows in ProjectMembers where the student is involved
             String deleteProjectMembersQuery = "DELETE FROM ProjectMembers WHERE studentId = ?";
             PreparedStatement ps1 = conn.prepareStatement(deleteProjectMembersQuery);
             ps1.setInt(1, id);
             ps1.executeUpdate();
     
-            // Then, delete the corresponding rows in the JoinProject table
-            String deleteJoinProjectQuery = "DELETE FROM JoinProject WHERE studentId = ?";
-            PreparedStatement ps2 = conn.prepareStatement(deleteJoinProjectQuery);
-            ps2.setInt(1, id);
-            ps2.executeUpdate();
+            // Step 3: Delete projects created by the student, but only if there are no other references to the project
+            PreparedStatement psProjects = conn.prepareStatement(
+                "DELETE FROM Project WHERE ownerType = 'student' AND ownerId = ? AND NOT EXISTS (SELECT 1 FROM ProjectMembers WHERE projectId = Project.id) AND NOT EXISTS (SELECT 1 FROM JoinProject WHERE projectId = Project.id)"
+            );
+            psProjects.setInt(1, id);
+            psProjects.executeUpdate();
     
-            // Now, delete the student from the Student table
+            // Step 4: Finally, delete the student from the Student table
             String deleteStudentQuery = "DELETE FROM Student WHERE id = ?";
             PreparedStatement ps3 = conn.prepareStatement(deleteStudentQuery);
             ps3.setInt(1, id);
             ps3.executeUpdate();
-    
+            
             System.out.println("Student and related records deleted successfully!");
+            
         } catch (SQLException e) {
             System.out.println("Error: " + e.getMessage());
         }
-    }
+    }        
     
     static void viewClubs(Connection conn) {
         try {
