@@ -53,6 +53,9 @@ CREATE TABLE ProjectMembers (
     FOREIGN KEY (projectId) REFERENCES Project(id),
     FOREIGN KEY (studentId) REFERENCES Student(id)
 );
+ALTER TABLE ProjectMembers ADD CONSTRAINT fk_project
+  FOREIGN KEY (projectId) REFERENCES Project(id)
+  ON DELETE CASCADE;
 
 
 -- Step 6: Create JoinProject table (for students joining projects)
