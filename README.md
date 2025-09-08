@@ -3,7 +3,6 @@
 A platform that connects **students** and **clubs** for collaborative projects, events, and skill development.  
 Students can showcase their skills, join projects, and explore clubs, while clubs can manage members, publish projects, and organize events.
 
----
 
 ## Features
 
@@ -31,14 +30,12 @@ Students can showcase their skills, join projects, and explore clubs, while club
   - Clubs can collaborate with other clubs
   - Many-to-many schema support
 
----
 
 ## Tech Stack
 
 - **Backend:** Java (JDBC/Servlets)  
 - **Database:** MySQL (UTF-8)  
 
----
 
 ## Database Schema
 
@@ -52,7 +49,6 @@ Students can showcase their skills, join projects, and explore clubs, while club
 
 Schema file: [`ProjectPortal.sql`](./ProjectPortal.sql)
 
----
 
 ## Quick Setup
 
@@ -61,12 +57,9 @@ Schema file: [`ProjectPortal.sql`](./ProjectPortal.sql)
 3. Update DB credentials in `ClubProjectPortal.java`  
 4. Compile and run the Java file  
 
----
 
 ## Future Enhancements
 
 - Stronger authentication (passwords)  
 - Web frontend  
 - Notifications and messaging 
-
----
